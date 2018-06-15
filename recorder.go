@@ -117,8 +117,6 @@ func (r *Recorder) Run() {
 			continue
 		}
 
-		logrus.Println(content)
-
 		// check if the received log messages matches the
 		// configured regex
 		matches := r.matcher.FindStringSubmatch(content)
@@ -183,7 +181,7 @@ func (r *Recorder) process(matches []string) (Tags, Values, error) {
 func (r *Recorder) write(timestamp time.Time, tags Tags, values Values) error {
     bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
         Precision: "us",
-        Database:  "test",
+        Database:  r.Conf.Database,
     })
 
     // construct the new databpoint for influxdb

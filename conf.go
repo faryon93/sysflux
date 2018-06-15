@@ -42,6 +42,7 @@ type ConfInflux struct {
 }
 
 type ConfSyslog struct {
+	Database	string `yaml:"database"`
 	Measurement string `yaml:"measurement"`
 	Listen      string `yaml:"listen"`
 	Regex       string `yaml:"regex"`
@@ -69,5 +70,17 @@ func LoadConf() (*Conf, error) {
 	}
 
 	var conf Conf
-	return &conf, viper.Unmarshal(&conf)
+	err = viper.Unmarshal(&conf)
+	if err != nil {
+		return nil, err
+	}
+
+	// set the default database if no other is specified
+	for i := range conf.Syslog {
+		if conf.Syslog[i].Database == "" {
+			conf.Syslog[i].Database = conf.Influx.Database
+		}
+	}
+
+	return &conf, nil
 }
