@@ -21,8 +21,9 @@ package main
 // ---------------------------------------------------------------------------------------
 
 import (
-	"github.com/spf13/viper"
 	"strings"
+
+	"github.com/spf13/viper"
 )
 
 // ---------------------------------------------------------------------------------------
@@ -42,7 +43,7 @@ type ConfInflux struct {
 }
 
 type ConfSyslog struct {
-	Database	string `yaml:"database"`
+	Database    string `yaml:"database"`
 	Measurement string `yaml:"measurement"`
 	Listen      string `yaml:"listen"`
 	Regex       string `yaml:"regex"`

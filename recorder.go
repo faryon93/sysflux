@@ -22,14 +22,15 @@ package main
 
 import (
 	"errors"
-	"github.com/influxdata/influxdb/client/v2"
-	"github.com/sirupsen/logrus"
-	"gopkg.in/mcuadros/go-syslog.v2"
 	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/influxdata/influxdb/client/v2"
+	"github.com/sirupsen/logrus"
+	"gopkg.in/mcuadros/go-syslog.v2"
 )
 
 // --------------------------------------------------------------------------------------
@@ -105,8 +106,8 @@ func (r *Recorder) Stop() {
 // Processes all incomming syslog messages and transforms them
 // into influxdb points.
 func (r *Recorder) Run() {
-    r.wg.Add(1)
-    defer r.wg.Done()
+	r.wg.Add(1)
+	defer r.wg.Done()
 
 	for message := range r.log {
 		// parse the syslog message and make sure everything exists
@@ -134,9 +135,9 @@ func (r *Recorder) Run() {
 
 		err = r.write(timestamp, tags, values)
 		if err != nil {
-		    logrus.Errorln("failed to write datapoint:", err.Error())
-		    continue
-        }
+			logrus.Errorln("failed to write datapoint:", err.Error())
+			continue
+		}
 	}
 }
 
@@ -178,23 +179,22 @@ func (r *Recorder) process(matches []string) (Tags, Values, error) {
 	return tags, values, nil
 }
 
-
 func (r *Recorder) write(timestamp time.Time, tags Tags, values Values) error {
-    bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
-        Precision: "us",
-        Database:  r.Conf.Database,
-    })
+	bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
+		Precision: "us",
+		Database:  r.Conf.Database,
+	})
 
-    // construct the new databpoint for influxdb
-    pt, err := client.NewPoint(r.Conf.Measurement, tags, values, timestamp)
-    if err != nil {
-    	return err
+	// construct the new databpoint for influxdb
+	pt, err := client.NewPoint(r.Conf.Measurement, tags, values, timestamp)
+	if err != nil {
+		return err
 	}
-    bp.AddPoint(pt)
+	bp.AddPoint(pt)
 
-    if len(bp.Points()) < 1 {
-        return nil
-    }
+	if len(bp.Points()) < 1 {
+		return nil
+	}
 
-    return r.Influx.Write(bp)
+	return r.Influx.Write(bp)
 }

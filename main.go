@@ -23,12 +23,12 @@ package main
 import (
 	"flag"
 	"os"
+	"syscall"
+	"time"
 
+	"github.com/faryon93/util"
+	"github.com/influxdata/influxdb/client/v2"
 	"github.com/sirupsen/logrus"
-    "github.com/influxdata/influxdb/client/v2"
-    "syscall"
-    "github.com/faryon93/util"
-    "time"
 )
 
 // ---------------------------------------------------------------------------------------
@@ -39,7 +39,7 @@ func main() {
 	var colors bool
 	var timeout time.Duration
 	flag.BoolVar(&colors, "colors", false, "force color logging")
-	flag.DurationVar(&timeout, "timeout", 800 * time.Millisecond, "influxdb write timeout")
+	flag.DurationVar(&timeout, "timeout", 800*time.Millisecond, "influxdb write timeout")
 	flag.Parse()
 
 	// setup logger
@@ -51,43 +51,43 @@ func main() {
 
 	conf, err := LoadConf()
 	if err != nil {
-	    panic(err)
-    }
+		panic(err)
+	}
 
-    // construct the influxdb configuration
-    influxConfig := client.HTTPConfig{
-        Addr: conf.Influx.Addr,
-        Username: conf.Influx.User,
-        Password: conf.Influx.Password,
-        Timeout: timeout,
-    }
+	// construct the influxdb configuration
+	influxConfig := client.HTTPConfig{
+		Addr:     conf.Influx.Addr,
+		Username: conf.Influx.User,
+		Password: conf.Influx.Password,
+		Timeout:  timeout,
+	}
 
-    recorders := make([]*Recorder, 0)
-    for i, syslog := range conf.Syslog {
-        influx, err := client.NewHTTPClient(influxConfig)
-        if err != nil {
-            logrus.Errorf("syslog(%d): failed to create influx client: %s", i, err.Error())
-            continue
-        }
+	recorders := make([]*Recorder, 0)
+	for i, syslog := range conf.Syslog {
+		influx, err := client.NewHTTPClient(influxConfig)
+		if err != nil {
+			logrus.Errorf("syslog(%d): failed to create influx client: %s", i, err.Error())
+			continue
+		}
 
-        rec := Recorder{Influx: influx, Conf: *syslog}
-        err = rec.Setup()
-        if err != nil {
-            logrus.Errorf("syslog(%d): failed to setup recorders: %s", i, err.Error())
-            continue
-        }
+		rec := Recorder{Influx: influx, Conf: *syslog}
+		err = rec.Setup()
+		if err != nil {
+			logrus.Errorf("syslog(%d): failed to setup recorders: %s", i, err.Error())
+			continue
+		}
 
-        logrus.Infof("starting syslog(%d) recorder", i)
-        recorders = append(recorders, &rec)
-        go rec.Run()
-    }
+		logrus.Infof("starting syslog(%d) recorder", i)
+		recorders = append(recorders, &rec)
+		go rec.Run()
+	}
 
-    // wait for stop signals
-    util.WaitSignal(os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-    logrus.Infoln("received SIGINT / SIGTERM going to shutdown")
+	// wait for stop signals
+	util.WaitSignal(os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	logrus.Infoln("received SIGINT / SIGTERM going to shutdown")
 
-    for i, rec := range recorders {
-        rec.Stop()
-        logrus.Infof("stopped syslog(%d) recorder", i)
-    }
+	for i, rec := range recorders {
+		rec.Stop()
+		logrus.Infof("stopped syslog(%d) recorder", i)
+	}
 }
