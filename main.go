@@ -25,9 +25,10 @@ import (
 	"os"
 
 	"github.com/sirupsen/logrus"
-    client "github.com/influxdata/influxdb/client/v2"
+    "github.com/influxdata/influxdb/client/v2"
     "syscall"
     "github.com/faryon93/util"
+    "time"
 )
 
 // ---------------------------------------------------------------------------------------
@@ -36,7 +37,9 @@ import (
 
 func main() {
 	var colors bool
+	var timeout time.Duration
 	flag.BoolVar(&colors, "colors", false, "force color logging")
+	flag.DurationVar(&timeout, "timeout", 800 * time.Millisecond, "influxdb write timeout")
 	flag.Parse()
 
 	// setup logger
@@ -56,6 +59,7 @@ func main() {
         Addr: conf.Influx.Addr,
         Username: conf.Influx.User,
         Password: conf.Influx.Password,
+        Timeout: timeout,
     }
 
     recorders := make([]*Recorder, 0)
