@@ -128,6 +128,7 @@ func (r *Recorder) Run() {
 		tags, values, err := r.process(matches)
 		if err != nil {
 			logrus.Warnln("failed to process message:", err.Error())
+			logrus.Infoln(content)
 			continue
 		}
 
@@ -185,10 +186,10 @@ func (r *Recorder) write(timestamp time.Time, tags Tags, values Values) error {
     })
 
     // construct the new databpoint for influxdb
-    pt, _ := client.NewPoint(
-        r.Conf.Measurement,
-        tags, values, timestamp,
-    )
+    pt, err := client.NewPoint(r.Conf.Measurement, tags, values, timestamp)
+    if err != nil {
+    	return err
+	}
     bp.AddPoint(pt)
 
     if len(bp.Points()) < 1 {
