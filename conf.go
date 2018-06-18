@@ -47,6 +47,7 @@ type ConfSyslog struct {
 	Measurement string `yaml:"measurement"`
 	Listen      string `yaml:"listen"`
 	Regex       string `yaml:"regex"`
+	BatchSize   int    `yaml:"batch_size"`
 }
 
 // ---------------------------------------------------------------------------------------
