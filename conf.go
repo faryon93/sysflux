@@ -36,17 +36,18 @@ type Conf struct {
 }
 
 type ConfInflux struct {
-	Addr     string `yaml:"string"`
-	User     string `yaml:"user"`
-	Password string `yaml:"password"`
-	Database string `yaml:"database"`
+	Addr     string
+	User     string
+	Password string
+	Database string
 }
 
 type ConfSyslog struct {
-	Database    string `yaml:"database"`
-	Measurement string `yaml:"measurement"`
-	Listen      string `yaml:"listen"`
-	Regex       string `yaml:"regex"`
+	Database    string
+	Measurement string
+	Listen      string
+	Regex       string
+	BatchSize   int    `mapstructure:"batch_size"`
 }
 
 // ---------------------------------------------------------------------------------------

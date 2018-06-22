@@ -55,6 +55,7 @@ type Recorder struct {
 	syslog  *syslog.Server
 	log     syslog.LogPartsChannel
 	wg      sync.WaitGroup
+	batch 	client.BatchPoints
 }
 
 type Tags map[string]string
@@ -71,6 +72,12 @@ func (r *Recorder) Setup() error {
 		return err
 	}
 	r.matcher = matcher
+
+	// construct the initial point batch
+	r.batch, _ = client.NewBatchPoints(client.BatchPointsConfig{
+		Precision: "us",
+		Database:  r.Conf.Database,
+	})
 
 	// configure the syslog server
 	r.log = make(syslog.LogPartsChannel)
@@ -163,6 +170,7 @@ func (r *Recorder) process(matches []string) (Tags, Values, error) {
 
 			// we are processing a value
 			} else if strings.HasPrefix(name, PrefixValue) {
+				// convert to floating point value
 				value, err := strconv.ParseFloat(val, 32)
 				if err != nil {
 					continue
@@ -178,27 +186,36 @@ func (r *Recorder) process(matches []string) (Tags, Values, error) {
 	return tags, values, nil
 }
 
+// Write adds a point to the point batch.
 func (r *Recorder) write(timestamp time.Time, tags Tags, values Values) error {
 	// skip all data points which don't contain at least one value
 	if len(values) < 1 {
 		return nil
 	}
 
-	bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
-		Precision: "us",
-		Database:  r.Conf.Database,
-	})
-
 	// construct the new databpoint for influxdb
 	pt, err := client.NewPoint(r.Conf.Measurement, tags, values, timestamp)
 	if err != nil {
 		return err
 	}
-	bp.AddPoint(pt)
+	r.batch.AddPoint(pt)
 
-	if len(bp.Points()) < 1 {
+	// don't write the point batch to influxdb until
+	// the threshold size has been reached
+	if r.Conf.BatchSize > 0 && len(r.batch.Points()) < r.Conf.BatchSize {
 		return nil
 	}
 
-	return r.Influx.Write(bp)
+	err = r.Influx.Write(r.batch)
+	if err != nil {
+		return err
+	}
+
+	// clear the batch after the points have been written to influxdb
+	r.batch, _ = client.NewBatchPoints(client.BatchPointsConfig{
+		Precision: "us",
+		Database:  r.Conf.Database,
+	})
+
+	return nil
 }

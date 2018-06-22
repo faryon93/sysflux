@@ -77,7 +77,8 @@ func main() {
 			continue
 		}
 
-		logrus.Infof("starting syslog(%d) recorder", i)
+		logrus.Infof("starting syslog(%d) recorder on \"%s\", batch: %d",
+			i, syslog.Listen, syslog.BatchSize)
 		recorders = append(recorders, &rec)
 		go rec.Run()
 	}
