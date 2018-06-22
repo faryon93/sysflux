@@ -161,12 +161,11 @@ func (r *Recorder) process(matches []string) (Tags, Values, error) {
 			if strings.HasPrefix(name, PrefixTag) {
 				tags[strings.TrimPrefix(name, PrefixTag)] = val
 
-				// we are processing a value
+			// we are processing a value
 			} else if strings.HasPrefix(name, PrefixValue) {
-				// convert to floating point value
 				value, err := strconv.ParseFloat(val, 32)
 				if err != nil {
-					return nil, nil, err
+					continue
 				}
 
 				values[strings.TrimPrefix(name, PrefixValue)] = float32(value)
@@ -180,6 +179,11 @@ func (r *Recorder) process(matches []string) (Tags, Values, error) {
 }
 
 func (r *Recorder) write(timestamp time.Time, tags Tags, values Values) error {
+	// skip all data points which don't contain at least one value
+	if len(values) < 1 {
+		return nil
+	}
+
 	bp, _ := client.NewBatchPoints(client.BatchPointsConfig{
 		Precision: "us",
 		Database:  r.Conf.Database,
