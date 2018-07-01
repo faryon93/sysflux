@@ -70,6 +70,10 @@ func main() {
 			continue
 		}
 
+		logrus.Infof("starting syslog(%d) listener (sz: %d, timeout: %s, listen: %s)",
+			i, syslog.BatchSize, syslog.BatchTimeout, syslog.Listen)
+
+		// setup the recorder
 		rec := Recorder{Influx: influx, Conf: *syslog}
 		err = rec.Setup()
 		if err != nil {
@@ -77,8 +81,7 @@ func main() {
 			continue
 		}
 
-		logrus.Infof("starting syslog(%d) recorder on \"%s\", batch: %d",
-			i, syslog.Listen, syslog.BatchSize)
+		// start the recorder
 		recorders = append(recorders, &rec)
 		go rec.Run()
 	}

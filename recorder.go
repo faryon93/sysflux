@@ -55,7 +55,7 @@ type Recorder struct {
 	syslog  *syslog.Server
 	log     syslog.LogPartsChannel
 	wg      sync.WaitGroup
-	batch 	client.BatchPoints
+	batch 	Batch
 }
 
 type Tags map[string]string
@@ -74,10 +74,13 @@ func (r *Recorder) Setup() error {
 	r.matcher = matcher
 
 	// construct the initial point batch
-	r.batch, _ = client.NewBatchPoints(client.BatchPointsConfig{
-		Precision: "us",
-		Database:  r.Conf.Database,
-	})
+	r.batch = Batch{
+		Timeout: r.Conf.BatchTimeout,
+		Size: r.Conf.BatchSize,
+		Influx: r.Influx,
+		Database: r.Conf.Database,
+		Measurement: r.Conf.Measurement,
+	}
 
 	// configure the syslog server
 	r.log = make(syslog.LogPartsChannel)
@@ -95,6 +98,14 @@ func (r *Recorder) Setup() error {
 	if err != nil {
 		return err
 	}
+
+	// start the timeout write of the batch
+	if r.Conf.BatchTimeout == 0 {
+		logrus.Warnln("no batch timeout configured: batch writes may be late")
+	} else {
+		go r.batch.Run()
+	}
+
 
 	return nil
 }
@@ -140,7 +151,7 @@ func (r *Recorder) Run() {
 			continue
 		}
 
-		err = r.write(timestamp, tags, values)
+		err = r.batch.Add(timestamp, tags, values)
 		if err != nil {
 			logrus.Errorln("failed to write datapoint:", err.Error())
 			continue
@@ -184,38 +195,4 @@ func (r *Recorder) process(matches []string) (Tags, Values, error) {
 	}
 
 	return tags, values, nil
-}
-
-// Write adds a point to the point batch.
-func (r *Recorder) write(timestamp time.Time, tags Tags, values Values) error {
-	// skip all data points which don't contain at least one value
-	if len(values) < 1 {
-		return nil
-	}
-
-	// construct the new databpoint for influxdb
-	pt, err := client.NewPoint(r.Conf.Measurement, tags, values, timestamp)
-	if err != nil {
-		return err
-	}
-	r.batch.AddPoint(pt)
-
-	// don't write the point batch to influxdb until
-	// the threshold size has been reached
-	if r.Conf.BatchSize > 0 && len(r.batch.Points()) < r.Conf.BatchSize {
-		return nil
-	}
-
-	err = r.Influx.Write(r.batch)
-	if err != nil {
-		return err
-	}
-
-	// clear the batch after the points have been written to influxdb
-	r.batch, _ = client.NewBatchPoints(client.BatchPointsConfig{
-		Precision: "us",
-		Database:  r.Conf.Database,
-	})
-
-	return nil
 }

@@ -22,6 +22,7 @@ package main
 
 import (
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -43,11 +44,12 @@ type ConfInflux struct {
 }
 
 type ConfSyslog struct {
-	Database    string
-	Measurement string
-	Listen      string
-	Regex       string
-	BatchSize   int    `mapstructure:"batch_size"`
+	Database     string
+	Measurement  string
+	Listen       string
+	Regex        string
+	BatchSize    int           `mapstructure:"batch_size"`
+	BatchTimeout time.Duration `mapstructure:"batch_timeout"`
 }
 
 // ---------------------------------------------------------------------------------------

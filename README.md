@@ -28,6 +28,8 @@ Configure custom access log format in NGINX and send to a remote syslog server.
     syslog:
       - measurement: http_proxy
         listen: 0.0.0.0:5014
+        batch_size: 25
+        batch_timeout: 1s
         regex: "(?P<tag_host>.+)\\s+(?P<tag_url>.+)\\s+(?P<tag_status>.+)\\s+(?P<val_upstream_connect>.+)\\s+(?P<val_upstream_header>.+)\\s+(?P<val_upstream_response>.+)\\s+(?P<val_request_time>.+)"
 
 ## Disclaimer
