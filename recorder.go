@@ -25,12 +25,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/influxdata/influxdb/client/v2"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/mcuadros/go-syslog.v2"
+	"gopkg.in/mcuadros/go-syslog.v2/format"
 )
 
 // --------------------------------------------------------------------------------------
@@ -53,9 +53,7 @@ type Recorder struct {
 	// internal variables
 	matcher *regexp.Regexp
 	syslog  *syslog.Server
-	log     syslog.LogPartsChannel
-	wg      sync.WaitGroup
-	batch 	Batch
+	batch   Batch
 }
 
 type Tags map[string]string
@@ -75,18 +73,17 @@ func (r *Recorder) Setup() error {
 
 	// construct the initial point batch
 	r.batch = Batch{
-		Timeout: r.Conf.BatchTimeout,
-		Size: r.Conf.BatchSize,
-		Influx: r.Influx,
-		Database: r.Conf.Database,
+		Timeout:     r.Conf.BatchTimeout,
+		Size:        r.Conf.BatchSize,
+		Influx:      r.Influx,
+		Database:    r.Conf.Database,
 		Measurement: r.Conf.Measurement,
 	}
 
 	// configure the syslog server
-	r.log = make(syslog.LogPartsChannel)
 	r.syslog = syslog.NewServer()
 	r.syslog.SetFormat(syslog.RFC3164)
-	r.syslog.SetHandler(syslog.NewChannelHandler(r.log))
+	r.syslog.SetHandler(r)
 
 	// boot the udp server to start reception of log messages
 	err = r.syslog.ListenUDP(r.Conf.Listen)
@@ -106,7 +103,6 @@ func (r *Recorder) Setup() error {
 		go r.batch.Run()
 	}
 
-
 	return nil
 }
 
@@ -116,46 +112,43 @@ func (r *Recorder) Stop() {
 	if err != nil {
 		logrus.Errorln("failed to stop syslog:", err.Error())
 	}
-	close(r.log)
-
-	r.wg.Wait()
 }
 
 // Processes all incomming syslog messages and transforms them
 // into influxdb points.
-func (r *Recorder) Run() {
-	r.wg.Add(1)
-	defer r.wg.Done()
+func (r *Recorder) Handle(message format.LogParts, t int64, syslogErr error) {
+	// parse the syslog message and make sure everything exists
+	timestamp := time.Now()
+	content, ok := message["content"].(string)
+	if !ok {
+		logrus.Warnln("missing message field \"content\": ignoring message")
+		return
+	}
 
-	for message := range r.log {
-		// parse the syslog message and make sure everything exists
-		timestamp := time.Now()
-		content, ok := message["content"].(string)
-		if !ok {
-			logrus.Warnln("missing message field \"content\": ignoring message")
-			continue
-		}
+	// check if the received log messages matches the
+	// configured regex
+	matches := r.matcher.FindStringSubmatch(content)
+	if len(matches) < len(r.matcher.SubexpNames()) {
+		logrus.Warnln("ignoring message:", content)
+		return
+	}
 
-		// check if the received log messages matches the
-		// configured regex
-		matches := r.matcher.FindStringSubmatch(content)
-		if len(matches) < len(r.matcher.SubexpNames()) {
-			continue
-		}
+	// process the message
+	tags, values, err := r.process(matches)
+	if err != nil {
+		logrus.Warnln("failed to process message:", err.Error())
+		logrus.Infoln(content)
+		return
+	}
 
-		// process the message
-		tags, values, err := r.process(matches)
-		if err != nil {
-			logrus.Warnln("failed to process message:", err.Error())
-			logrus.Infoln(content)
-			continue
-		}
+	if host, ok := tags["host"]; ok && strings.Contains(host, "proxy") {
+		logrus.Infoln("malformed message:", content)
+	}
 
-		err = r.batch.Add(timestamp, tags, values)
-		if err != nil {
-			logrus.Errorln("failed to write datapoint:", err.Error())
-			continue
-		}
+	err = r.batch.Add(timestamp, tags, values)
+	if err != nil {
+		logrus.Errorln("failed to write datapoint:", err.Error())
+		return
 	}
 }
 
@@ -179,7 +172,7 @@ func (r *Recorder) process(matches []string) (Tags, Values, error) {
 			if strings.HasPrefix(name, PrefixTag) {
 				tags[strings.TrimPrefix(name, PrefixTag)] = val
 
-			// we are processing a value
+				// we are processing a value
 			} else if strings.HasPrefix(name, PrefixValue) {
 				// convert to floating point value
 				value, err := strconv.ParseFloat(val, 32)

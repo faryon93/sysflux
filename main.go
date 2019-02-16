@@ -83,7 +83,6 @@ func main() {
 
 		// start the recorder
 		recorders = append(recorders, &rec)
-		go rec.Run()
 	}
 
 	// wait for stop signals

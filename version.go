@@ -23,7 +23,7 @@ package main
 var (
 	// release information
 	AppName    = "sysflux"
-	AppVersion = "1.0"
+	AppVersion = "1.2"
 
 	// filled by build tool
 	GitCommit   string
