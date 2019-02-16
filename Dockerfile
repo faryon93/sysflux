@@ -37,5 +37,4 @@ COPY --from=builder /tmp/sysflux /usr/sbin/sysflux
 # make binary executable
 RUN chmod +x /usr/sbin/sysflux
 
-EXPOSE 8000
 CMD /usr/sbin/sysflux
