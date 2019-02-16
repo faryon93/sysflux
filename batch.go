@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/influxdata/influxdb/client/v2"
+	"github.com/sirupsen/logrus"
 )
 
 // ---------------------------------------------------------------------------------------
@@ -51,7 +52,10 @@ type Batch struct {
 func (b *Batch) Run() {
 	b.timer = time.NewTimer(b.Timeout)
 	for range b.timer.C {
-		b.write()
+		err := b.write()
+		if err != nil {
+			logrus.Errorln("failed to write batch:", err.Error())
+		}
 		b.timer.Reset(b.Timeout)
 	}
 }
