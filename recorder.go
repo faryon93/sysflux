@@ -141,10 +141,6 @@ func (r *Recorder) Handle(message format.LogParts, t int64, syslogErr error) {
 		return
 	}
 
-	if host, ok := tags["host"]; ok && strings.Contains(host, "proxy") {
-		logrus.Infoln("malformed message:", content)
-	}
-
 	err = r.batch.Add(timestamp, tags, values)
 	if err != nil {
 		logrus.Errorln("failed to write datapoint:", err.Error())
